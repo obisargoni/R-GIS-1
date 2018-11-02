@@ -43,6 +43,7 @@ df$`column 1`
 df[['column 1']][1:10]
 
 # install tidyverse package
+install.packages('tidyverse')
 library(tidyverse)
 
 LdnData <- read_csv("https://files.datapress.com/london/dataset/ward-profiles-and-atlas/2015-09-24T14:21:24/ward-profiles-excel-version.csv", na = 'n/a')
