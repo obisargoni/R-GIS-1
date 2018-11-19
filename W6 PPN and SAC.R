@@ -47,5 +47,21 @@ BluePlaquesBNGSub@bbox <- BluePlaquesBNGSub@bbox[c(1,2),]
 tmap_mode('view')
 tm_shape(BoroughMapBNG) + tm_polygons(col = NA, alpha = 0.5) + tm_shape(BluePlaquesBNGSub) + tm_dots(col = 'blue')
 
+# To test for Complete Spatial Randomness wantto compare distribution of points to 
+# a poisson distribution - Ripley's K does this
 
+# Takes a long time to compute for this many points across London, need to restrict analysis
+
+# Select individual Borough
+Lambeth <- BoroughMapBNG[BoroughMapBNG@data$lad15nm=="Lambeth",]
+qtm(Lambeth)
+
+# Plot just the BP points in Lambeth
+BluePlaquesLambeth = BluePlaquesBNGSub[Lambeth,]
+BluePlaquesLambeth@bbox <- BluePlaquesLambeth@bbox[c(1,2),]
+tm_shape(Lambeth) + tm_polygons(col = NA, alpha = 0.5) + tm_shape(BluePlaquesLambeth) + tm_dots(col = 'blue')
+
+# Can now carry out analysis in spatstat. Need to create and 'observation window'
+LambethWindow <- as.owin(Lambeth)
+plot(LambethWindow)
 
