@@ -189,3 +189,108 @@ basemap_bng <- openproj(basemap, projection = BNG)
 
 # did not work - some issue with projection
 autoplot(basemap_bng) + geom_point(data=BluePlaquesLambethPts, aes(coords.x1,coords.x2, colour=cluster, fill=cluster)) + geom_polygon(data = chulls, aes(coords.x1,coords.x2, group=cluster, fill=cluster), alpha = 0.5)
+
+#################################
+#
+# TASK 2
+# 
+# Exporing patters of spatially referenced contiuous observations
+#
+#################################
+library(rgdal)
+
+# Read london ward data
+LondonWards <- readOGR(file.path(getwd(), 'Boundaries', 'LondonWards.shp'), layer='LondonWards')
+
+# Give it a projection
+proj4string(LondonWards) <- CRS("+init=epsg:27700")
+
+BluePlaques@bbox <- BluePlaques@bbox[1:2,]
+
+tmap_mode('view')
+tm_shape(LondonWards) + tm_polygons(col=NA, alpha = 0.5) + 
+  tm_shape(BluePlaquesBNGSub) + tm_dots(col = 'blue')
+
+BluePlaquesBNGSub@proj4string
+LondonWards@proj4string
+
+# Meausres of spatial autocorrelation require continuous data
+# To do this, count numbers of plaques in each ward
+res <- poly.counts(BluePlaquesBNGSub,LondonWards)
+class(res)
+LondonWards@data$PlaqueCount <- res
+LondonWards@data$PlaqueDensity <- LondonWards@data$PlaqueCount/poly.areas(LondonWards)
+
+# Choropleth map to show density
+tm_shape(LondonWards) + 
+  tm_polygons('PlaqueDensity',
+              style='jenks',
+              palette='PuOr',
+              midpoint = NA,
+              title = 'Blue Plaque Density')
+# In order to calculate measure of spatial autocorrelation need
+# to get spatial wrights matrix
+library(spdep)
+
+# Calculate centroids of Wards in London
+coordsW <- coordinates(LondonWards)
+plot(coordsW)
+
+# Now generate spatial weights matrix
+# Start with binary queens case neighbours from wards
+LWard_nb <- poly2nb(LondonWards, queen=T)
+class(LWard_nb)
+
+# Plot the network
+plot(LWard_nb, coordinates(coordsW), col='red')
+plot(LondonWards, add=T)
+
+# Now create spatial weights object
+LWard.lw <- nb2listw(LWard_nb, style='C')
+class(LWard.lw)
+
+# Can now calculate Moran's I and other statis using this 
+# spatial weights matrix
+
+# Morans I - values close to 1 indicates clustered values
+I_LWard_Glogab <- moran.test(LondonWards@data$PlaqueDensity, LWard.lw)
+I_LWard_Glogab
+
+# Geary's C - indicates whether similar values are clustering
+C_LWards_Global_Density <- geary.test(LondonWards@data$PlaqueDensity, LWard.lw)
+C_LWards_Global_Density
+
+# Getis Ord General - indicates whether high or low values are clustering
+G_LWard_Global_Density <- globalG.test(LondonWards@data$PlaqueDensity, LWard.lw)
+G_LWard_Global_Density
+
+# Moran's I = 0.66. Some clustering
+# Geary's C = 0.42. <1 therefore shows similar values are clustering
+# General G = G > expected. High values tending to cluster
+
+# Calculate local versions of these statistics for each ward
+# to look at where the clustering is occuring
+I_LWard_Local <- localmoran(LondonWards@data$PlaqueCount, LWard.lw)
+I_LWard_Local_Density <- localmoran(LondonWards@data$PlaqueDensity, LWard.lw)
+
+head(I_LWard_Local)
+
+# Want to copy some of these column back to the LondonWard dataset
+LondonWards@data$BLocI <- I_LWard_Local[,1]
+LondonWards@data$BLocIz <- I_LWard_Local[,4] # z score (normalised)
+LondonWards@data$BLocIR <- I_LWard_Local_Density[,1]
+LondonWards@data$BLocIRz <- I_LWard_Local[,4] # z score (normalised)
+
+# Now plot maps of the local Moran's I outputs
+
+# break the values into different confidence intervals
+breaks1 <- c(-1000,-2.58,-1.96,-1.65,1.65,1.96,2.58,1000)
+MoranColours <- rev(brewer.pal(8,'RdGy'))
+
+tm_shape(LondonWards) + 
+  tm_polygons('BLocIRz',
+              style='fixed',
+              breaks=breaks1,
+              palette=MoranColours,
+              midpoint=NA,
+              title='Local Moran\'s I, Blue Plaques in London')
