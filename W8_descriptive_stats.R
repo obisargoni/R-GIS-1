@@ -46,14 +46,46 @@ dfTypes <- as.data.frame(cbind(lapply(LondonWardsSF, class)))
 dfTypes['WD11CD',]
 # Add numeric index to the df
 dfTypes <- cbind(dfTypes, seq.int(nrow(dfTypes)))
-# Select the numeric fields
-unique(dfTypes$V1)
-numeric_fields <- dfTypes[dfTypes$V1 %in% c('factor', 'numeric', 
-                                            'integer'),2]
+# Select only the fields we want
+LondonWardsSFSub <- LondonWardsSF[,c(1:73, 83:86)]
+
+# Create some subsets for plotting the data, also need to ensure that the geometry column is NULL
+LondonWardsSFSub1 <- st_set_geometry(LondonWardsSFSub[,c(1:3,9:27)],NULL)
+LondonWardsSFSub2 <- st_set_geometry(LondonWardsSFSub[,c(1:3,28:50)],NULL)
+LondonWardsSFSub3 <- st_set_geometry(LondonWardsSFSub[,c(1:3,51:73)],NULL)
+
+LondonMelt2 <- melt(LondonWardsSFSub2, id.vars = 1:3)
+
+# Now plot the data
+attach(LondonMelt2)
+multihist2 <- ggplot(LondonMelt2, aes(x=value)) + geom_histogram(aes(y = ..density..)) + geom_density(colour = 'red', size = 1, adjust = 1)
+multihist2 <- multihist2 + facet_wrap(~ variable, scales = 'free')
+multihist2
+
+LondonMelt3 <-melt(LondonWardsSFSub3, id.vars = c(1:3))
+multihist3 <- ggplot(LondonMelt3, aes(x=value)) + geom_histogram(aes(y = ..density..)) + geom_density(colour = 'red', size = 1, adjust = 1)
+multihist3 <- multihist3 + facet_wrap(~variable, scale = 'free')
+multihist3
+
+LondonMelt1 <-melt(LondonWardsSFSub1, id.vars = c(1:3))
+multihist1 <- ggplot(LondonMelt1, aes(x=value)) + geom_histogram(aes(y = ..density..)) + geom_density(colour = 'red', size = 1, adjust = 1)
+multihist1 <- multihist1 + facet_wrap(~variable, scale = 'free')
+multihist1
+
+# Can very simply plot histograms of transformed variables
+multihist4 <- ggplot(LondonMelt1, aes(x = log10(value))) + geom_histogram(aes(y = ..density..)) + geom_density(colour = 'red', size = 1, adjust = 1)
+multihist4 <- multihist4 + facet_wrap(~variable, scale = 'free')
+multihist4
+help("facet_wrap")
 
 
+# Creating a histogram based on centroids of wards
+wardpoints <- ggplot(LondonWardsSFSub, aes(x = x.y, y = y.y)) + geom_point(colour = 'blue', size = 0.5) + coord_equal()
+wardpoints
 
-numeric_fields
-class(seq.int(nrow(dfTypes)))
+wardbins <- ggplot(LondonWardsSFSub, aes(x=x.y, y = y.y)) + stat_bin_2d(bins = 15) + coord_equal()
+wardbins
 
-help("seq.int")
+# Or can add KDE to plot of points
+wardpoints  <- wardpoints + stat_density_2d(aes(fill = ..level..), geom = 'polygon')
+wardpoints
