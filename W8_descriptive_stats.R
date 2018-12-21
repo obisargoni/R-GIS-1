@@ -89,3 +89,111 @@ wardbins
 # Or can add KDE to plot of points
 wardpoints  <- wardpoints + stat_density_2d(aes(fill = ..level..), geom = 'polygon')
 wardpoints
+
+#############################
+#
+# Task 2: Writing functions
+#
+#############################
+
+# cngvar here is confusing? Some sort of dummy variable but don' tunderstand why it works
+# after cngvar is initialised it becomes a string variable, a sort of list, with each element either high, low or medium
+recode <- function(variable, high, medium, low){
+  cngvar <- NULL
+  cngvar[variable <= high] <- 'high'
+  cngvar[variable <= medium] <- 'medium'
+  cngvar[variable <= low] <- 'low'
+  return(cngvar)
+  }
+
+summary(LondonWardsSF$AvgGCSE2011)
+LndGCSERecode <- recode(LondonWardsSF$AvgGCSE2011, 409.1, 358.3, 332.2)
+LndGCSERecode
+
+summary(LondonWardsSF$UnauthAbse)
+LndUnauthAbsRecode <- recode(LondonWardsSF$UnauthAbse, 2.4675, 1.4105, 0.8215)
+
+# Add the recoded variables back into the dataframe
+LondonWardsSF$GCSERecode <- LndGCSERecode
+LondonWardsSF$UnauthAbseRecode <- LndUnauthAbsRecode
+
+LondonWardsSF$GCSERecode
+LondonWardsSF$UnauthAbseRecode
+
+# Functions to calculate location quotients (quotient is the ratio of the local distribution to the global distribituion)
+LQ1 <- function(pctVariable){
+  pctVariable / mean(pctVariable)
+}
+
+# Use this if percentage hasn't already been calculated
+LQ2 <- function(variable, rowtotal){
+  localprop <- variable / rowtotal
+  globabprop <- sum(variable) / sum(rowtotal)
+  return(localprop/globabprop)
+}
+
+
+LondonWardsSF$PctOwnedLQ <- LQ1(LondonWardsSF$PctOwned20)
+LondonWardsSF$PctSocialRLQ <- LQ1(LondonWardsSF$PctSocialR)
+LondonWardsSF$PctPrivateLQ <- LQ1(LondonWardsSF$PctPrivate)
+LondonWardsSF$PctSharedO <- LQ1(LondonWardsSF$PctSharedO)
+LondonWardsSF$PctRentFreLQ <- LQ1(LondonWardsSF$PctRentFre)
+
+# Creating plots using functions
+
+vars <- readline("Enter vars to map")
+
+# Function to get character string from terminal input
+GetInputStrList <- function(sep = ' '){
+  InputString <- readline()
+  StringList <- unlist(strsplit(InputString, sep))
+  return(as.list(StringList))
+}
+
+# Function to calculate local quotients of prcnt variables given df and list of variables
+AddLocalQuotients <- function(SFdataframe, varsList){
+  attach(SFdataframe)
+  # Iterate over variables and create quotients
+  for (i in 1:length(varsList)) {
+    pctVariableName <- varsList[[i]]
+    colvect <- which(colnames(SFdataframe)==pctVariableName)
+    v <- SFdataframe[,colvect]
+    SFdataframe[,paste('LQ_', pctVariableName)] <- LQ1(v[[pctVariableName]])
+  }
+  detach(SFdataframe)
+  return(SFdataframe)
+}
+
+PlotVariables <- function(SFdataframe, varslist){
+  print(paste("Plotting ", length(varslist), " variables"))
+  for (i in 1:length(varslist)) {
+    print(paste("Plotting ", varslist[[i]]))
+    
+    #LQMapperPlot <- ggplot(SFdataframe) + geom_polygon(aes(fill = varslist[[i]]))
+    #LQMapperPlot
+    #ggplot2::ggsave(LQMapperPlot, filename = paste(varslist[[i]], '.png', sep = ''))
+    
+    LQMapperPlot <- tm_shape(SFdataframe) + tm_polygons(varslist[[i]], 
+                                                         style="jenks",
+                                                         palette="Spectral",
+                                                         midpoint=1,
+                                                         title=varslist[[i]],
+                                                         alpha = 0.5)
+     
+    tmap_save(LQMapperPlot, filename = paste(varslist[[i]], '.png', sep = ''))
+    
+  }
+  return(SFdataframe)
+}
+
+help(geom_polygon)
+# Test out these functions
+colnames(LondonWardsSF)
+
+vars_to_mapLQs <- GetInputStrList()
+df_with_LQ_vars <- AddLocalQuotients(LondonWardsSF, vars_to_mapLQs)
+
+LQ_vars <- paste('LQ_ ',vars_to_mapLQs)
+
+library(tmap)
+PlotVariables(LondonWardsSF, LQ_vars)
