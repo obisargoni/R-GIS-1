@@ -200,3 +200,57 @@ LQ_vars <- paste('LQ_',vars_to_mapLQs, sep = '')
 library(tmap)
 PlotVariables(df_with_LQ_vars, LQ_vars) # Works!
 colnames(df_with_LQ_vars)
+
+
+################################
+#
+# Task 4 - Basic Geodemographic Classification
+#
+################################
+
+# Remove geographic element of the LondonWardsSF data object
+LondonWardsDF <- st_set_geometry(LondonWardsSF, NULL)
+cbind(lapply(LondonWardsDF, class))
+
+# Create a new data frame containing only the data to be used for the clustering
+ClusterDF <- LondonWardsDF[,c('PctOwned20', 'PctNoEngli')]
+
+# Check that variables are approximately normally distributed
+pctownedPlot <- ggplot(data = ClusterDF, aes(x = PctOwned20)) + geom_histogram(colour = 'grey')
+pctownedPlot
+
+pctnoengPlot <- ggplot(data = LondonWardsDF, aes(x = PctNoEngli)) + geom_histogram(colour = 'blue')
+pctnoengPlot
+
+# Q-Q plot can also be used to check normality
+qqnorm(ClusterDF$PctOwned20, pch = 19) + qqline(ClusterDF$PctOwned20)
+qqnorm(ClusterDF$PctNoEngli, phc = 19) + qqline(ClusterDF$PctNoEngli)
+
+
+# Run statistical test to check how normally distributed data is
+# Despite looking reasonably normaly distributed the variables fail the S-W test
+# This may be because of the large sample size
+shapiro.test(ClusterDF$PctOwned20)
+shapiro.test(ClusterDF$PctNoEngli)
+
+# Continue with cluster analysis anyway
+
+# Find three clusters
+ClusterFit <- kmeans(ClusterDF, 3, nstart = 25)
+
+
+# Get cluster means
+ClusterMeans <- aggregate(ClusterDF, by = list(ClusterFit$cluster), FUN = mean)
+ClusterMeans                   
+
+# Plot the means. Need to convert the clusters into a categorical variable for colouring using 'factor'
+ClusterPlot <- ggplot(ClusterDF, aes(x = PctOwned20, y = PctNoEngli)) + geom_point(colour = factor(ClusterFit$cluster)) + geom_point(data = ClusterMeans[,2:3], aes(x=PctOwned20, y=PctNoEngli), size = 7, shape = 18) + theme(legend.position = 'none')
+ClusterPlot 
+
+# Assign the clusters back into the dataframe
+ClusterDF$cluster <- ClusterFit$cluster
+LondonWardsSF$cluster <- ClusterDF$cluster
+
+# Now plot wards and colour by cluster
+WardClusterPlot <- ggplot(LondonWardsSF) + geom_sf(mapping = aes(fill = cluster)) + scale_fill_continuous(breaks = c(1,2,3))
+WardClusterPlot
