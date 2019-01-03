@@ -139,6 +139,8 @@ LondonWardsSF$PctPrivateLQ <- LQ1(LondonWardsSF$PctPrivate)
 LondonWardsSF$PctSharedO <- LQ1(LondonWardsSF$PctSharedO)
 LondonWardsSF$PctRentFreLQ <- LQ1(LondonWardsSF$PctRentFre)
 
+LondonWardsSF$PctRentFreLQ
+
 # Creating plots using functions
 
 vars <- readline("Enter vars to map")
@@ -158,7 +160,7 @@ AddLocalQuotients <- function(SFdataframe, varsList){
     pctVariableName <- varsList[[i]]
     colvect <- which(colnames(SFdataframe)==pctVariableName)
     v <- SFdataframe[,colvect]
-    SFdataframe[,paste('LQ_', pctVariableName)] <- LQ1(v[[pctVariableName]])
+    SFdataframe[,paste('LQ_', pctVariableName, sep = '')] <- LQ1(v[[pctVariableName]])
   }
   detach(SFdataframe)
   return(SFdataframe)
@@ -193,7 +195,8 @@ colnames(LondonWardsSF)
 vars_to_mapLQs <- GetInputStrList()
 df_with_LQ_vars <- AddLocalQuotients(LondonWardsSF, vars_to_mapLQs)
 
-LQ_vars <- paste('LQ_ ',vars_to_mapLQs)
+LQ_vars <- paste('LQ_',vars_to_mapLQs, sep = '')
 
 library(tmap)
-PlotVariables(LondonWardsSF, LQ_vars)
+PlotVariables(df_with_LQ_vars, LQ_vars) # Works!
+colnames(df_with_LQ_vars)
