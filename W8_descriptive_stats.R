@@ -254,3 +254,8 @@ LondonWardsSF$cluster <- ClusterDF$cluster
 # Now plot wards and colour by cluster
 WardClusterPlot <- ggplot(LondonWardsSF) + geom_sf(mapping = aes(fill = cluster)) + scale_fill_continuous(breaks = c(1,2,3))
 WardClusterPlot
+
+# Save the London Wards data with additional varliables
+colnames(LondonWardsSF)
+help("writeOGR")
+writeOGR(as_Spatial(LondonWardsSF), dsn = file.path(getwd(), 'Data'), layer = 'NewLondonWardsUpdated.shp', driver = 'ESRI Shapefile', verbose = TRUE)
