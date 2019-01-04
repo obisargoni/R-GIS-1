@@ -129,3 +129,63 @@ summary(LinRegMld_dummy3)
 # Then map the residuals and test for spatial autocorrelation. If not autocorrelation suggest that model 
 # is capturing all significant geographical variables
 
+###############################
+#
+# Task 3 - Geographically Weighted Regression Models
+#
+###############################
+
+# Adams final model from Task 2
+LinRegMdlFinal <- lm(AvGCSE201~UnthAbs + Emplymn + CrsPHH2, data = LondonWardsSF)
+summary(LinRegMdlFinal)
+plot(LinRegMdlFinal)
+
+# Get residuals and plot them for each ward
+LondonWardsSF$LinRegResid_Final <- LinRegMdlFinal$residuals
+qtm(LondonWardsSF, fill = 'LinRegResid_Final')
+
+# Check for spatial autocorrelation
+LondonWards <- as_Spatial(LondonWardsSF)
+WardsNeighList <- poly2nb(LondonWards, queen = TRUE)
+WardsWeihts <- nb2listw(WardsNeighList, style = 'C')
+moran.test(LondonWards@data$LinRegResid_Final, WardsWeihts)
+
+# Moran's I suggests there is still a little spatial autocorrelation
+# Conduct Geographically Weighted Regression analysis to see how the regression model varies over the geographical space
+library(spgwr)
+
+# GWR performs a regression analysis for each data point, including all data points that are located within
+# some distance to the target data point.
+# This allows the variation of the regression model with geography to be examined.
+
+# The window that determines which data points are included is set thrugh an optimisation procedure
+# Also known as kernel bandwidth
+GWRBandwidth <- gwr.sel(AvGCSE201 ~ UnthAbs + Emplymn + CrsPHH2, data = LondonWards, coords = cbind(x,y), adapt = T)
+
+# Now run the model
+gwr.model <- gwr(AvGCSE201 ~ UnthAbs + Emplymn + CrsPHH2, data = LondonWards, adapt = GWRBandwidth, hatmatrix = TRUE, se.fit = TRUE)
+gwr.model
+
+# Can now plot the coefficients for different variables
+GWRResults <- as.data.frame(gwr.model$SDF)
+head(GWRResults)
+
+# Add these coefficients back into the LondonWards spatial dataframe
+LondonWards@data$coefUnthAbs <- GWRResults$UnthAbs
+LondonWards@data$coefEmplymn <- GWRResults$Emplymn
+LondonWards@data$coefCrsPHH2 <- GWRResults$CrsPHH2
+
+tm_shape(LondonWards) + tm_polygons(col = 'coefUnthAbs', palette = 'RdBu')
+tm_shape(LondonWards) + tm_polygons(col = 'coefEmplymn', palette = 'RdBu')
+tm_shape(LondonWards) + tm_polygons(col = 'coefCrsPHH2', palette = 'RdBu')
+
+# Now loom at the statistical significance of the coefficients using the standard erroe
+# 2 standard errors equarte to around the 95% confidence interval
+# Therefore if a coefficient is more that 2 se from zero it can be said to be approximately significant
+
+sigtestUnthAbs <- abs(LondonWards@data$coefUnthAbs) - 2*gwr.model$SDF@data$UnthAbs_se
+LondonWards@data$sigtestUnthAbs <-  sigtestUnthAbs
+
+tm_shape(LondonWards) + tm_polygons(col = 'sigtestUnthAbs', palette = 'RdBu')
+
+# Can condluce that much of the geographical variation of the UnthAb variable is not significant.
