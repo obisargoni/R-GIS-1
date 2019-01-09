@@ -8,6 +8,10 @@ library(sf)
 
 # Read in the 2013 nitrosdioxide data
 AirPolData <- read.csv(file.path(getwd(), 'Data', '4.1. Concentrations LAEI 2013 Update', '2013', 'CSV', 'PostLAEI2013_2013_NO2.csv'))
+length(AirPolData)
+
+# Creat a smaller dataset so that interpolation runs more quickly
+AirPolData <- AirPolData[sample(nrow(AirPolData), 500000),]
 
 # Check the fields
 cbind(colnames(AirPolData),lapply(colnames(AirPolData), class))
@@ -48,4 +52,23 @@ title("Iterpolation Grid and Sample Points")
 # 1st Method: inverse weighting to generate a surface
 ?idw
 
-AirPol_idw <- idw(formula = Total ~ 1, locations = AirPolData, newdata = Grd)
+AirPol_idw <- idw(formula = conct ~ 1, locations = AirPolData, newdata = Grd)
+AirPol_idw.output <- as.data.frame(AirPol_idw)
+head(AirPol_idw.output) # This dataframe contains the interpolated values for each grid section
+
+# Nename the dataframe columns
+names(AirPol_idw.output)[1:3] <- c('x','y','conct_interp')
+head(AirPol_idw.output)
+
+# Now plot
+plot(AirPol_idw) # Can see the road network!!!
+
+# Plot a different way
+plt_AirPol <- ggplot(data = AirPol_idw.output, aes(x=x, y=y)) + geom_tile(aes(fill = conct_interp)) + scale_fill_gradient(low = '#FEEBE2', high = '#7A0177')
+plt_AirPol
+
+####################
+#
+# Interpolation by Kriging
+#
+####################
